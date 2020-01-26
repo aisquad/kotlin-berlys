@@ -50,8 +50,8 @@ class SourceFile(){
         return data
     }
 
-    fun fetchData(allowedRoutes: List<Int>) : MutableList<Route> {
-        val routes : MutableList<Route> = mutableListOf()
+    fun fetchData(allowedRoutes: List<Int>) : MutableMap<Int, Route> {
+        val routes : MutableMap<Int, Route> = mutableMapOf()
         val routePattern = Regex(
             "25\\s+BERLYS ALIMENTACION S\\.A\\.U\\s+[\\d:]+\\s+[\\d.]+\\s+Volumen de pedidos de la ruta :\\s+" +
                 "(?<routeid>\\d+)\\s+(?<routedesc>[^\\n]+)\\s+Día de entrega :\\s+(?<date>[^ ]{10})(?<stops>.+?)" +
@@ -90,7 +90,7 @@ class SourceFile(){
                     matchResult.groups["routedesc"]!!.value.trimStart('2', '5', ' '),
                     costumers
                 )
-                routes.add(route)
+                routes.put(route.id!!, route)
             }
         }
         return routes
@@ -101,11 +101,11 @@ class Berlys {
     var date = LocalDate.now()
     private val source = SourceFile()
     val knownRoutes : List<Int> = listOf(678, 679, 680, 681, 682, 686, 688, 696)
-    var routes : MutableList<Route> = mutableListOf()
+    var routes : MutableMap<Int, Route> = mutableMapOf()
 
     fun showRoutes () {
         var i = 1
-        routes.forEach { route ->
+        routes.forEach { (routeid, route) ->
             println("${route.id} ${route.name}")
             route.costumers.forEach { costumer ->
                 println("${i++}\t${costumer.name}\t${costumer.town}\t${costumer.PVL} PVL")
@@ -116,7 +116,7 @@ class Berlys {
     fun showAssignedRoutes(assignedRoutes: List<Int>) {
         var i = 0
         assignedRoutes.forEach { assignedRoute ->
-            routes.forEach { route ->
+            routes.forEach { routeid, route ->
                 if (assignedRoute == route.id) {
                     println("${route.id}\t${route.name}")
                     route.costumers.forEach { costumer ->
