@@ -1,5 +1,6 @@
 import java.io.File
 import java.time.LocalDate
+import java.time.format.DateTimeFormatter
 
 data class Costumer (val id: Int, val name: String, val town: String, val PVL: Float)
 
@@ -16,18 +17,35 @@ class SourceFile(){
     var date = LocalDate.now()
     var file: File = File("")
 
-    fun check() {
+    fun checkWriteDir() {
+        // Create new folder when it doesn't exist.
+        writeDir = listOf(writeDir, date.year, "%02d".format(date.monthValue)).joinToString(sep)
+        if (!File(writeDir).exists()) {
+            File(writeDir).mkdir()
+        }
+    }
+    fun checkFile() {
+        /*
+            Read downloaded file from Download folder, if it isn't there then read it from data folder.
+            If file is in Download folder, move it to data folder.
+         */
         file = File(readDir, sourceFilename)
+
         if (!file.exists()) {
-            writeDir = listOf(writeDir, date.year, "%02d".format(date.monthValue)).joinToString(sep)
+            checkWriteDir()
             val files = File(writeDir).listFiles()
             val filename = files[files.lastIndex]
             file = File(filename.toURI())
+        } else {
+            val filename = listOf(
+                writeDir, date.format(DateTimeFormatter.ofPattern("yyyy-MM-dd"))
+            ).joinToString(sep) + ".txt"
+            file.renameTo(File(filename))
         }
     }
 
     fun readSourceFile() : String {
-        check()
+        checkFile()
         var data: String = file.readText()
         return data
     }
@@ -46,31 +64,33 @@ class SourceFile(){
             "(?<code>\\d{10}) (?<costumer>.{35}) (?<town>.{20}) (?<ordnum>.{10}) (?<vol>.{11})(?: (?<UM>.{2,3}))?"
         )
         val text = readSourceFile()
+
+        //Routes iteration
         routePattern.findAll(text).forEach { matchResult ->
             val routeid: Int = matchResult.groups["routeid"]!!.value.toInt()
             if (routeid in allowedRoutes) {
-                val items = matchResult.groups["stops"]?.value?.let { result -> costumersPattern.findAll(result) }
+                val items = costumersPattern.findAll(matchResult.groups["stops"]!!.value)
                 var costumers = mutableListOf<Costumer>()
-                if (items != null) {
-                    items.forEach {
-                        var vol = it.groups["vol"]!!.value
-                        vol = vol.replace(".", "")
-                        vol = vol.replace(',', '.')
-                        val costumer = Costumer(
-                            it.groups["code"]!!.value.toInt(),
-                            it.groups["costumer"]!!.value.trim(' '),
-                            it.groups["town"]!!.value.trim(' '),
-                            vol.toFloat()
-                        )
-                        costumers.add(costumer)
-                    }
-                    val route = Route(
-                        matchResult.groups["routeid"]!!.value.toInt(),
-                        matchResult.groups["routedesc"]!!.value.trimStart('2', '5', ' '),
-                        costumers
+
+                //Costumers iteration
+                items.forEach {
+                    var vol = it.groups["vol"]!!.value
+                    vol = vol.replace(".", "")
+                    vol = vol.replace(',', '.')
+                    val costumer = Costumer(
+                        it.groups["code"]!!.value.toInt(),
+                        it.groups["costumer"]!!.value.trim(' '),
+                        it.groups["town"]!!.value.trim(' '),
+                        vol.toFloat()
                     )
-                    routes.add(route)
+                    costumers.add(costumer)
                 }
+                val route = Route(
+                    matchResult.groups["routeid"]!!.value.toInt(),
+                    matchResult.groups["routedesc"]!!.value.trimStart('2', '5', ' '),
+                    costumers
+                )
+                routes.add(route)
             }
         }
         return routes
@@ -80,11 +100,11 @@ class SourceFile(){
 class Berlys {
     val source = SourceFile()
     val knownRoutes : List<Int> = listOf(678, 679, 680, 681, 682, 686, 688, 696)
+    var routes : MutableList<Route> = mutableListOf()
 
-    fun run (){
-        val routes = source.fetchData(knownRoutes)
+    fun showRoutes () {
         var i = 1
-        routes.forEach{ route ->
+        routes.forEach { route ->
             println("${route.id} ${route.name}")
             route.costumers.forEach { costumer ->
                 println("${i++}\t${costumer.name}\t${costumer.town}\t${costumer.PVL} PVL")
@@ -92,6 +112,25 @@ class Berlys {
             println()
         }
     }
+    fun showAssignedRoutes(assignedRoutes: List<Int>) {
+        var i = 0
+        assignedRoutes.forEach { assignedRoute ->
+            routes.forEach { route ->
+                if (assignedRoute == route.id) {
+                    println("${route.id}\t${route.name}")
+                    route.costumers.forEach { costumer ->
+                        println("${++i}\t${costumer.name}\t${costumer.town}\t${costumer.PVL} PVL")
+                    }
+                    println()
+                }
+            }
+        }
+    }
+    fun run (){
+        routes = source.fetchData(knownRoutes)
+        val assignedRoutes = listOf(680, 688)
+        showAssignedRoutes(assignedRoutes)
+     }
 }
 
 fun main() {
