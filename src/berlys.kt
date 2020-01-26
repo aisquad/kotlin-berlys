@@ -30,9 +30,9 @@ class SourceFile(){
             If file is in Download folder, move it to data folder.
          */
         file = File(readDir, sourceFilename)
+        checkWriteDir()
 
         if (!file.exists()) {
-            checkWriteDir()
             val files = File(writeDir).listFiles()
             val filename = files[files.lastIndex]
             file = File(filename.toURI())
@@ -98,7 +98,8 @@ class SourceFile(){
 }
 
 class Berlys {
-    val source = SourceFile()
+    var date = LocalDate.now()
+    private val source = SourceFile()
     val knownRoutes : List<Int> = listOf(678, 679, 680, 681, 682, 686, 688, 696)
     var routes : MutableList<Route> = mutableListOf()
 
@@ -126,14 +127,46 @@ class Berlys {
             }
         }
     }
-    fun run (){
+
+    fun loadData() {
         routes = source.fetchData(knownRoutes)
-        val assignedRoutes = listOf(680, 688)
-        showAssignedRoutes(assignedRoutes)
+    }
+
+    fun run (){
+        val weekDays = mapOf<Int, List<Int>>(
+            1 to listOf(680, 681),
+            2 to listOf(680, 681),
+            3 to listOf(680, 681),
+            4 to listOf(680, 681),
+            5 to listOf(680, 681),
+            6 to listOf(680, 681)
+        )
+        val assignedRoutes = weekDays[date.dayOfWeek.value]
+        if (weekDays.containsKey(date.dayOfWeek.value))
+            showAssignedRoutes(assignedRoutes!!)
+        else
+            throw Exception("Today you must to take a pause.")
      }
 }
 
-fun main() {
+fun convertToIntList(params: Array<String>) : List<Int>{
+    var list = mutableListOf<Int>()
+    params.forEach {
+        list.add(it.toInt())
+    }
+    return list
+}
+
+fun main(args: Array<String>) {
     val berlys = Berlys()
-    berlys.run()
+    berlys.loadData()
+
+    if (args.isNotEmpty()) {
+        if (args[0] == "--all") {
+            berlys.showRoutes()
+        } else if (args.size > 1) {
+            berlys.showAssignedRoutes(convertToIntList(args))
+        }
+    } else
+        berlys.run()
 }
