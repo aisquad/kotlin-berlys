@@ -1,35 +1,44 @@
 import java.io.File
-import java.time.LocalDate
+import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 
 data class Costumer (val id: Int, val name: String, val town: String, val PVL: Float)
 
-data class Route (val id: Int?, val name: String?, val costumers: MutableList<Costumer>)
+data class Route (val id: Int, val name: String, val date: String, val costumers: MutableList<Costumer>)
 
-class SourceFile(){
+class SourceFile {
     val sep = File.separator
     var sourceFilename: String = "Volumen Rutas.txt"
-    var readDir: String = listOf("C:", "Download").joinToString(sep)
+    var readDir: String = listOf("C:", "Users", "igorr", "Downloads").joinToString(sep)
     private val writeDirArray = listOf(
         "C:", "Users", "igorr", "OneDrive", "Eclipse", "Python", "dades", "Berlys"
     )
     var writeDir: String = writeDirArray.joinToString (sep)
-    var date = LocalDate.now()
+    private var date = LocalDateTime.now()
     var file: File = File("")
+
+    fun checkDate(): LocalDateTime {
+        if (date.hour > 18 && LocalDateTime.now().dayOfMonth == date.dayOfMonth)
+            date = date.plusDays(1)
+        return date
+    }
 
     fun checkWriteDir() {
         // Create new folder when it doesn't exist.
+
         writeDir = listOf(writeDir, date.year, "%02d".format(date.monthValue)).joinToString(sep)
         if (!File(writeDir).exists()) {
             File(writeDir).mkdir()
         }
     }
+
     fun checkFile() {
         /*
             Read downloaded file from Download folder, if it isn't there then read it from data folder.
             If file is in Download folder, move it to data folder.
          */
         file = File(readDir, sourceFilename)
+        checkDate()
         checkWriteDir()
 
         if (!file.exists()) {
@@ -41,6 +50,7 @@ class SourceFile(){
                 writeDir, date.format(DateTimeFormatter.ofPattern("yyyy-MM-dd"))
             ).joinToString(sep) + ".txt"
             file.renameTo(File(filename))
+            file = File(filename)
         }
     }
 
@@ -74,23 +84,21 @@ class SourceFile(){
 
                 //Costumers iteration
                 items.forEach {
-                    var vol = it.groups["vol"]!!.value
-                    vol = vol.replace(".", "")
-                    vol = vol.replace(',', '.')
                     val costumer = Costumer(
                         it.groups["code"]!!.value.toInt(),
                         it.groups["costumer"]!!.value.trim(' '),
                         it.groups["town"]!!.value.trim(' '),
-                        vol.toFloat()
+                        convertStringToFloat(it.groups["vol"]!!.value)
                     )
                     costumers.add(costumer)
                 }
                 val route = Route(
                     matchResult.groups["routeid"]!!.value.toInt(),
                     matchResult.groups["routedesc"]!!.value.trimStart('2', '5', ' '),
+                    matchResult.groups["date"]!!.value,
                     costumers
                 )
-                routes.put(route.id!!, route)
+                routes[route.id] = route
             }
         }
         return routes
@@ -98,32 +106,32 @@ class SourceFile(){
 }
 
 class Berlys {
-    var date = LocalDate.now()
     private val source = SourceFile()
+    var date = source.checkDate()
     val knownRoutes : List<Int> = listOf(678, 679, 680, 681, 682, 686, 688, 696)
     var routes : MutableMap<Int, Route> = mutableMapOf()
 
     fun showRoutes () {
         var i = 1
-        routes.forEach { (routeid, route) ->
-            println("${route.id} ${route.name}")
+        for ((routeid, route) in routes) {
+            println(route.date + " - " + routeid.toString() + " - " + route.name)
             route.costumers.forEach { costumer ->
                 println("${i++}\t${costumer.name}\t${costumer.town}\t${costumer.PVL} PVL")
             }
             println()
         }
     }
+
     fun showAssignedRoutes(assignedRoutes: List<Int>) {
         var i = 0
         assignedRoutes.forEach { assignedRoute ->
-            routes.forEach { routeid, route ->
-                if (assignedRoute == route.id) {
-                    println("${route.id}\t${route.name}")
-                    route.costumers.forEach { costumer ->
-                        println("${++i}\t${costumer.name}\t${costumer.town}\t${costumer.PVL} PVL")
-                    }
-                    println()
+            val route = routes[assignedRoute]
+            if (route != null) {
+                println("${route.date}\t${route.id}\t${route.name}")
+                route.costumers.forEach { costumer ->
+                    println("${++i}\t${costumer.name}\t${costumer.town}\t${costumer.PVL} PVL")
                 }
+                println()
             }
         }
     }
@@ -141,6 +149,7 @@ class Berlys {
             5 to listOf(680, 681),
             6 to listOf(680, 681)
         )
+        println(date.toString())
         val assignedRoutes = weekDays[date.dayOfWeek.value]
         if (weekDays.containsKey(date.dayOfWeek.value))
             showAssignedRoutes(assignedRoutes!!)
@@ -155,6 +164,10 @@ fun convertToIntList(params: Array<String>) : List<Int>{
         list.add(it.toInt())
     }
     return list
+}
+
+fun convertStringToFloat(string: String) : Float {
+    return string.replace(".", "").replace(',', '.').toFloat()
 }
 
 fun main(args: Array<String>) {
