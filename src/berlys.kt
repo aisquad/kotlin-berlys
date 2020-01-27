@@ -1,6 +1,10 @@
 import java.io.File
+import java.text.DecimalFormat
+import java.text.DecimalFormatSymbols
+import java.text.NumberFormat
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
+import java.util.*
 
 data class Costumer (val id: Int, val name: String, val town: String, val PVL: Float)
 
@@ -88,7 +92,7 @@ class SourceFile {
                         it.groups["code"]!!.value.toInt(),
                         it.groups["costumer"]!!.value.trim(' '),
                         it.groups["town"]!!.value.trim(' '),
-                        convertStringToFloat(it.groups["vol"]!!.value)
+                        format(it.groups["vol"]!!.value)
                     )
                     costumers.add(costumer)
                 }
@@ -129,7 +133,7 @@ class Berlys {
             if (route != null) {
                 println("${route.date}\t${route.id}\t${route.name}")
                 route.costumers.forEach { costumer ->
-                    println("${++i}\t${costumer.name}\t${costumer.town}\t${costumer.PVL} PVL")
+                    println("${++i}\t\t${costumer.name}\t${format(costumer.PVL)}\t${costumer.town}")
                 }
                 println()
             }
@@ -166,8 +170,18 @@ fun convertToIntList(params: Array<String>) : List<Int>{
     return list
 }
 
-fun convertStringToFloat(string: String) : Float {
-    return string.replace(".", "").replace(',', '.').toFloat()
+fun format(string: String) : Float {
+    // Convert string to float.
+    return NumberFormat.getInstance().parse(string.trim()).toFloat()
+}
+
+
+fun format(float: Float): String {
+    // Convert Float to String.
+    val symbols = DecimalFormatSymbols()
+    symbols.decimalSeparator = ','
+    symbols.groupingSeparator = '.'
+    return DecimalFormat().format(float)
 }
 
 fun main(args: Array<String>) {
