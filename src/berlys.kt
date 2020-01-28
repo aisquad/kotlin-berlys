@@ -4,22 +4,22 @@ import java.text.DecimalFormatSymbols
 import java.text.NumberFormat
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
-import java.util.*
 
 data class Costumer (val id: Int, val name: String, val town: String, val PVL: Float)
 
 data class Route (val id: Int, val name: String, val date: String, val costumers: MutableList<Costumer>)
 
 class SourceFile {
-    val sep = File.separator
-    var sourceFilename: String = "Volumen Rutas.txt"
-    var readDir: String = listOf("C:", "Users", "igorr", "Downloads").joinToString(sep)
+    private val formatter = Formatter()
+    private val sep: String = File.separator
+    private var sourceFilename: String = "Volumen Rutas.txt"
+    private var readDir: String = listOf("C:", "Users", "igorr", "Downloads").joinToString(sep)
     private val writeDirArray = listOf(
         "C:", "Users", "igorr", "OneDrive", "Eclipse", "Python", "dades", "Berlys"
     )
-    var writeDir: String = writeDirArray.joinToString (sep)
+    private var writeDir: String = writeDirArray.joinToString (sep)
     private var date = LocalDateTime.now()
-    var file: File = File("")
+    private var file: File = File("")
 
     fun checkDate(): LocalDateTime {
         if (date.hour > 18 && LocalDateTime.now().dayOfMonth == date.dayOfMonth)
@@ -58,7 +58,7 @@ class SourceFile {
         }
     }
 
-    fun readSourceFile() : String {
+    private fun readSourceFile() : String {
         checkFile()
         var data: String = file.readText()
         return data
@@ -92,7 +92,7 @@ class SourceFile {
                         it.groups["code"]!!.value.toInt(),
                         it.groups["costumer"]!!.value.trim(' '),
                         it.groups["town"]!!.value.trim(' '),
-                        format(it.groups["vol"]!!.value)
+                        formatter.strToFloat(it.groups["vol"]!!.value)
                     )
                     costumers.add(costumer)
                 }
@@ -111,9 +111,10 @@ class SourceFile {
 
 class Berlys {
     private val source = SourceFile()
-    var date = source.checkDate()
-    val knownRoutes : List<Int> = listOf(678, 679, 680, 681, 682, 686, 688, 696)
-    var routes : MutableMap<Int, Route> = mutableMapOf()
+    private var date = source.checkDate()
+    private val knownRoutes : List<Int> = listOf(678, 679, 680, 681, 682, 686, 688, 696)
+    private var routes : MutableMap<Int, Route> = mutableMapOf()
+    private val formatter: Formatter = Formatter()
 
     fun showRoutes () {
         var i = 1
@@ -133,7 +134,7 @@ class Berlys {
             if (route != null) {
                 println("${route.date}\t${route.id}\t${route.name}")
                 route.costumers.forEach { costumer ->
-                    println("${++i}\t\t${costumer.name}\t${format(costumer.PVL)}\t${costumer.town}")
+                    println("${++i}\t\t${costumer.name}\t${formatter.floatToStr(costumer.PVL)}\t${costumer.town}")
                 }
                 println()
             }
@@ -163,28 +164,33 @@ class Berlys {
 }
 
 fun convertToIntList(params: Array<String>) : List<Int>{
-    var list = mutableListOf<Int>()
+    val list = mutableListOf<Int>()
     params.forEach {
         list.add(it.toInt())
     }
     return list
 }
 
-fun format(string: String) : Float {
-    // Convert string to float.
-    return NumberFormat.getInstance().parse(string.trim()).toFloat()
-}
+class Formatter {
+    val number: NumberFormat = NumberFormat.getInstance()
+    val decimalFormat = DecimalFormat.getInstance()
+
+    fun strToFloat(string: String): Float {
+        // Convert String to Float.
+        return number.parse(string.trim()).toFloat()
+    }
 
 
-fun format(float: Float): String {
-    // Convert Float to String.
-    val symbols = DecimalFormatSymbols()
-    symbols.decimalSeparator = ','
-    symbols.groupingSeparator = '.'
-    return DecimalFormat().format(float)
+    fun floatToStr(float: Float): String {
+        // Convert Float to String.
+        return decimalFormat.format(float)
+    }
 }
+
 
 fun main(args: Array<String>) {
+    val formatter = Formatter()
+
     val berlys = Berlys()
     berlys.loadData()
 
@@ -196,4 +202,5 @@ fun main(args: Array<String>) {
         }
     } else
         berlys.run()
+    println(formatter.floatToStr(1901924.12f))
 }
