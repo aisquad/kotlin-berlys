@@ -1,13 +1,12 @@
 import java.io.File
 import java.text.DecimalFormat
-import java.text.DecimalFormatSymbols
 import java.text.NumberFormat
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 
-data class Costumer (val id: Int, val name: String, val town: String, val PVL: Float)
+data class Costumer (val id: Int, val name: String, val town: String, var PVL: Float)
 
-data class Route (val id: Int, val name: String, val date: String, val costumers: MutableList<Costumer>)
+data class Route(val id: Int, val name: String, val date: String, val costumers: MutableMap<Int, Costumer>)
 
 class SourceFile {
     private val formatter = Formatter()
@@ -67,13 +66,13 @@ class SourceFile {
     fun fetchData(allowedRoutes: List<Int>) : MutableMap<Int, Route> {
         val routes : MutableMap<Int, Route> = mutableMapOf()
         val routePattern = Regex(
-            "25\\s+BERLYS ALIMENTACION S\\.A\\.U\\s+[\\d:]+\\s+[\\d.]+\\s+Volumen de pedidos de la ruta :\\s+" +
-                "(?<routeid>\\d+)\\s+(?<routedesc>[^\\n]+)\\s+Día de entrega :\\s+(?<date>[^ ]{10})(?<stops>.+?)" +
-                "NUMERO DE CLIENTES\\s+:\\s+(?<costnum>\\d+).+?" +
-                "SUMA VOLUMEN POR RUTA\\s+:\\s+(?<volamt>[\\d,.]+) (?<um1>(?:PVL|KG)).+?" +
-                "SUMA KG POR RUTA\\s+:\\s+(?<weightamt>[\\d,.]+) (?<um2>(?:PVL|KG)).+?" +
-                "(?:CAPACIDAD TOTAL CAMIÓN\\s+:\\s+(?<truckcap>[\\d,.]+) (?<um3>(?:PVL|KG)))?", RegexOption.DOT_MATCHES_ALL
-            )
+        "25\\s+BERLYS ALIMENTACION S\\.A\\.U\\s+[\\d:]+\\s+[\\d.]+\\s+Volumen de pedidos de la ruta :\\s+" +
+            "(?<routeid>\\d+)\\s+(?<routedesc>[^\\n]+)\\s+Día de entrega :\\s+(?<date>[^ ]{10})(?<stops>.+?)" +
+            "NUMERO DE CLIENTES\\s+:\\s+(?<costnum>\\d+).+?" +
+            "SUMA VOLUMEN POR RUTA\\s+:\\s+(?<volamt>[\\d,.]+) (?<um1>(?:PVL|KG)).+?" +
+            "SUMA KG POR RUTA\\s+:\\s+(?<weightamt>[\\d,.]+) (?<um2>(?:PVL|KG)).+?" +
+            "(?:CAPACIDAD TOTAL CAMIÓN\\s+:\\s+(?<truckcap>[\\d,.]+) (?<um3>(?:PVL|KG)))?", RegexOption.DOT_MATCHES_ALL
+        )
         val costumersPattern = Regex(
             "(?<code>\\d{10}) (?<costumer>.{35}) (?<town>.{20}) (?<ordnum>.{10}) (?<vol>.{11})(?: (?<UM>.{2,3}))?"
         )
@@ -84,17 +83,24 @@ class SourceFile {
             val routeid: Int = matchResult.groups["routeid"]!!.value.toInt()
             if (routeid in allowedRoutes) {
                 val items = costumersPattern.findAll(matchResult.groups["stops"]!!.value)
-                var costumers = mutableListOf<Costumer>()
+                var costumers = mutableMapOf<Int, Costumer>()
 
                 //Costumers iteration
                 items.forEach {
+                    val costumerID = it.groups["code"]!!.value.toInt()
+                    val volume = formatter.strToFloat(it.groups["vol"]!!.value)
                     val costumer = Costumer(
-                        it.groups["code"]!!.value.toInt(),
+                        costumerID,
                         it.groups["costumer"]!!.value.trim(' '),
                         it.groups["town"]!!.value.trim(' '),
-                        formatter.strToFloat(it.groups["vol"]!!.value)
+                        volume
                     )
-                    costumers.add(costumer)
+
+                    if (costumers.containsKey(costumerID)) {
+                        costumers[costumerID]!!.PVL += volume
+                    } else {
+                        costumers.put(costumerID, costumer)
+                    }
                 }
                 val route = Route(
                     matchResult.groups["routeid"]!!.value.toInt(),
@@ -120,7 +126,7 @@ class Berlys {
         var i = 1
         for ((routeid, route) in routes) {
             println(route.date + " - " + routeid.toString() + " - " + route.name)
-            route.costumers.forEach { costumer ->
+            route.costumers.forEach { (costumerID, costumer) ->
                 println("${i++}\t${costumer.name}\t${costumer.town}\t${costumer.PVL} PVL")
             }
             println()
@@ -133,7 +139,7 @@ class Berlys {
             val route = routes[assignedRoute]
             if (route != null) {
                 println("${route.date}\t${route.id}\t${route.name}")
-                route.costumers.forEach { costumer ->
+                route.costumers.forEach { (costumerID, costumer) ->
                     println("${++i}\t\t${costumer.name}\t${formatter.floatToStr(costumer.PVL)}\t${costumer.town}")
                 }
                 println()
